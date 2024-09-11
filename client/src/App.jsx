@@ -3,8 +3,10 @@ import { createSignal, onCleanup, onMount } from "solid-js";
 import io from "socket.io-client";
 import Peer from "peerjs";
 import Logo from "./assets/logo.png";
+
 // Connect to the backend server
-const socket = io("http://localhost:8000");
+const socket = io(import.meta.env.VITE_BACKEND_HOST);
+
 
 function App() {
   const [clients, setClients] = createSignal({});
