@@ -2,7 +2,7 @@
 import { createSignal, onCleanup, onMount } from "solid-js";
 import io from "socket.io-client";
 import Peer from "peerjs";
-
+import Logo from "./assets/logo.png";
 // Connect to the backend server
 const socket = io("http://localhost:8000");
 
@@ -76,51 +76,66 @@ function App() {
   });
   return (
     <div>
-      <h1>File Sharing App (SolidJS)</h1>
-      <p>Your Peer ID: {peerId()}</p>
-      <input
-        type="text"
-        placeholder="Enter remote peer ID"
-        value={remotePeerId()}
-        onInput={(e) => setRemotePeerId(e.target.value)}
-      />
-      <button onClick={connectToPeer}>Connect</button>
-
-      <input
-        type="file"
-        onInput={(e) =>
-          setFileToSend(e.target.files ? e.target.files[0] : null)
-        }
-      />
-      <button
-        class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full"
-        onClick={sendFile}
-      >
-        Send File
-      </button>
-      <h2>Connected Clients:</h2>
-      <ul>
-        {Object.values(clients()).map(
-          (client) =>
-            client.peerId &&
-            client.peerId != peerId() && (
-              <li key={client.id}>
-                {client.peerId}
-                {client.id !== peerId() && (
-                  <button
-                    class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full"
-                    onClick={() => {
-                      setRemotePeerId(client.peerId);
-                      connectToPeer();
-                    }}
-                  >
-                    Connect
-                  </button>
-                )}
-              </li>
-            )
-        )}
-      </ul>
+      <header>
+        <div class="w-100 bg-teal-600 h-16">
+          <div class="flex gap-4 items-center h-full px-2">
+            <img class="w-10 h-10" src={Logo} alt="" srcset="" />
+            <h1 class="text-2xl text-white font-semibold">SwiftSend</h1>
+          </div>
+        </div>
+      </header>
+      <div class="p-5 flex gap-2">
+        <p>You are</p>
+        <p class="font-semibold">{peerId()}</p>
+      </div>
+      <div class="border-2 border-teal-700 rounded-md p-2 m-2 flex flex-col min-h-32">
+        <h2 class="text-xl font-semibold">Available Clients</h2>
+        <ul class="flex flex-col gap-2">
+          {Object.values(clients()).map(
+            (client) =>
+              client.peerId &&
+              client.peerId != peerId() && (
+                <li key={client.id} class="flex flex-col md:flex-row gap-2 items-center">
+                  <p>{client.peerId}</p>
+                  {client.id !== peerId() && (
+                    <button
+                      class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full"
+                      onClick={() => {
+                        setRemotePeerId(client.peerId);
+                        connectToPeer();
+                      }}
+                    >
+                      Connect
+                    </button>
+                  )}
+                </li>
+              )
+          )}
+        </ul>
+      </div>
+      <div class="" hidden>
+        <input
+          type="text"
+          placeholder="Enter remote peer ID"
+          value={remotePeerId()}
+          onInput={(e) => setRemotePeerId(e.target.value)}
+        />
+        <button onClick={connectToPeer}>Connect</button>
+      </div>
+      <div class="px-5 py-2 flex flex-col gap-2">
+        <input
+          type="file"
+          onInput={(e) =>
+            setFileToSend(e.target.files ? e.target.files[0] : null)
+          }
+        />
+        <button
+          class="w-28 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full"
+          onClick={sendFile}
+        >
+          Send File
+        </button>
+      </div>
     </div>
   );
 }
