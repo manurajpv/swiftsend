@@ -26,6 +26,9 @@ function App() {
 
     // Listen for incoming connections
     peerRef.on("connection", (conn) => {
+      connRef = conn;
+      setRemotePeerId(conn.peer);
+      console.log("Peer " + remotePeerId() + " is connected");
       conn.on("data", (data) => {
         const receivedData = data.file;
         const blob = new Blob([receivedData]);
@@ -89,16 +92,23 @@ function App() {
           setFileToSend(e.target.files ? e.target.files[0] : null)
         }
       />
-      <button onClick={sendFile}>Send File</button>
+      <button
+        class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full"
+        onClick={sendFile}
+      >
+        Send File
+      </button>
       <h2>Connected Clients:</h2>
       <ul>
         {Object.values(clients()).map(
           (client) =>
-            (client.peerId && client.peerId != peerId()) && (
+            client.peerId &&
+            client.peerId != peerId() && (
               <li key={client.id}>
                 {client.peerId}
                 {client.id !== peerId() && (
                   <button
+                    class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full"
                     onClick={() => {
                       setRemotePeerId(client.peerId);
                       connectToPeer();
