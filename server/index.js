@@ -31,10 +31,12 @@ io.on("connection", (socket) => {
   clients[socket.id] = { id: socket.id };
 
   // Broadcast the updated client list to all clients
-  socket.on("peerId", (peerId) => {
+  socket.on("registerPeer", (data) => {
+    console.log(data)
     if (clients[socket.id]) {
-      clients[socket.id]["peerId"] = peerId;
-      console.log("peer connected ",peerId);
+      clients[socket.id]["peerId"] = data.id;
+      clients[socket.id]["peerName"] = data.name;
+      console.log("peer connected ", data.id);
       io.emit("clients", clients);
     }
   });
