@@ -2,7 +2,7 @@
 import { createSignal, createEffect, onCleanup, onMount } from "solid-js";
 import io from "socket.io-client";
 import Peer from "peerjs";
-import Logo from "./assets/logo.png";
+import Logo from "./assets/logo.svg";
 import toast, { Toaster } from "solid-toast";
 
 // Connect to the backend server
@@ -11,7 +11,9 @@ const socket = io(import.meta.env.VITE_BACKEND_HOST);
 function App() {
   const [clients, setClients] = createSignal({});
   const [peerId, setPeerId] = createSignal(null);
+  const [peerName, setPeerName] = createSignal("");
   const [remotePeerId, setRemotePeerId] = createSignal("");
+  const [remotePeerName, setRemotePeerName] = createSignal("");
   const [fileToSend, setFileToSend] = createSignal(null);
   const [progress, setProgress] = createSignal(0);
   const [receiveProgress, setReceiveProgress] = createSignal(0);
@@ -20,7 +22,43 @@ function App() {
   let receivedChunks = [];
   let totalFileSize = 0;
   let receivedBytes = 0;
-  const showToastWithProgress = (type="send", fileName="file") => {
+  // Arrays for past continuous verbs and animal names
+  const verbs = [
+    "Jumping",
+    "Running",
+    "Dancing",
+    "Singing",
+    "Crawling",
+    "Flying",
+    "Hopping",
+    "Swimming",
+    "Walking",
+    "Rolling",
+    "Climbing",
+    "Slithering",
+  ];
+  const animals = [
+    "Elephant",
+    "Tiger",
+    "Rabbit",
+    "Dolphin",
+    "Giraffe",
+    "Penguin",
+    "Kangaroo",
+    "Lion",
+    "Eagle",
+    "Frog",
+    "Snake",
+    "Turtle",
+  ];
+
+  // Function to generate a random peer name
+  const generatePeerName = () => {
+    const randomVerb = verbs[Math.floor(Math.random() * verbs.length)];
+    const randomAnimal = animals[Math.floor(Math.random() * animals.length)];
+    return `${randomVerb} ${randomAnimal}`;
+  };
+  const showToastWithProgress = (type = "send", fileName = "file") => {
     toast.custom((t) => {
       const startTime = Date.now();
       createEffect(() => {
@@ -41,14 +79,17 @@ function App() {
           <div class="flex flex-1 flex-col">
             <div class="font-medium text-white">Progress:</div>
             <div class="text-sm text-cyan-50">
-              Filename: <strong>{(type==="send") ? fileToSend().name : fileName}</strong>
+              Filename:{" "}
+              <strong>{type === "send" ? fileToSend().name : fileName}</strong>
             </div>
           </div>
           <div class="relative pt-4">
             <div class="w-full h-1 rounded-full bg-cyan-900"></div>
             <div
               class="h-1 top-4 absolute rounded-full bg-cyan-50"
-              style={{ width: `${(type==="send") ? progress() : receiveProgress}%` }}
+              style={{
+                width: `${type === "send" ? progress() : receiveProgress}%`,
+              }}
             ></div>
           </div>
         </div>
@@ -63,7 +104,9 @@ function App() {
     peerRef.on("open", (id) => {
       setPeerId(id);
       console.log("Peer ID: ", id);
-      socket.emit("peerId", id);
+      const name = generatePeerName();
+      setPeerName(name);
+      socket.emit("registerPeer", { id, name });
     });
 
     // Listen for incoming connections
@@ -102,7 +145,7 @@ function App() {
           receivedChunks = [];
           receivedBytes = 0;
           setReceiveProgress(0); // Reset progress bar after download
-          toast.success("Recieved file: " + data.fileName)
+          toast.success("Recieved file: " + data.fileName);
         }
       });
     });
@@ -121,7 +164,7 @@ function App() {
       // listen for connection
       conn.on("open", () => {
         console.log("Connected to peer: ", remotePeerId());
-        toast.success("Connected to the Client " + remotePeerId());
+        toast.success("Connected to the Client " + remotePeerName());
       });
       // Listen for disconnection event and show an alert
       conn.on("close", () => {
@@ -197,11 +240,12 @@ function App() {
       </header>
       <div class="p-5 flex gap-2">
         <p>You are</p>
-        <p class="font-semibold">{peerId()}</p>
+        <p class="font-semibold">{peerName()}</p>
       </div>
       <div class="border-2 border-teal-700 rounded-md p-2 m-2 flex flex-col min-h-32">
         <h2 class="text-xl font-semibold">Available Clients</h2>
         <ul class="flex flex-col gap-2">
+          {console.log(clients())}
           {Object.values(clients()).map(
             (client) =>
               client.peerId &&
@@ -210,12 +254,13 @@ function App() {
                   key={client.id}
                   class="flex flex-col md:flex-row gap-2 items-center"
                 >
-                  <p>{client.peerId}</p>
+                  <p>{client.peerName}</p>
                   {client.id !== peerId() && (
                     <button
                       class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full"
                       onClick={() => {
                         setRemotePeerId(client.peerId);
+                        setRemotePeerName(client.peerName);
                         connectToPeer();
                       }}
                     >
