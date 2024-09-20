@@ -32,7 +32,7 @@ io.on("connection", (socket) => {
 
   // Broadcast the updated client list to all clients
   socket.on("registerPeer", (data) => {
-    console.log(data)
+    console.log(data);
     if (clients[socket.id]) {
       clients[socket.id]["peerId"] = data.id;
       clients[socket.id]["peerName"] = data.name;
@@ -41,7 +41,11 @@ io.on("connection", (socket) => {
     }
   });
   io.emit("clients", clients);
-
+  socket.on("connectPeer", ({ clientId, from, name }) => {
+    if (clients[clientId]) {
+      io.to(clientId).emit("connectionRequest", { from, name });
+    }
+  });
   socket.on("disconnect", () => {
     console.log("Client disconnected: ", socket.id);
     delete clients[socket.id];

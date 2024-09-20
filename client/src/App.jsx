@@ -4,6 +4,8 @@ import io from "socket.io-client";
 import Peer from "peerjs";
 import Logo from "./assets/logo.svg";
 import toast, { Toaster } from "solid-toast";
+import FileProgressCard from "./components/FileprogressCard";
+import ClientList from "./components/ClientList";
 
 // Connect to the backend server
 const socket = io(import.meta.env.VITE_BACKEND_HOST);
@@ -16,7 +18,7 @@ function App() {
   const [remotePeerName, setRemotePeerName] = createSignal("");
   const [fileToSend, setFileToSend] = createSignal(null);
   const [progress, setProgress] = createSignal(0);
-  const [receiveProgress, setReceiveProgress] = createSignal(0);
+  const [fileName, setFilename] = createSignal("");
   let peerRef = null;
   let connRef = null;
   let receivedChunks = [];
@@ -88,14 +90,14 @@ function App() {
             <div
               class="h-1 top-4 absolute rounded-full bg-cyan-50"
               style={{
-                width: `${type === "send" ? progress() : receiveProgress}%`,
+                width: `${progress()}%`,
               }}
             ></div>
           </div>
         </div>
       );
     });
-    if (progress === 0 && receiveProgress === 0) toast.dismiss();
+    if (progress === 0) toast.dismiss();
   };
   onMount(() => {
     // Initialize PeerJS
@@ -112,42 +114,13 @@ function App() {
     // Listen for incoming connections
     peerRef.on("connection", (conn) => {
       connRef = conn;
+      receivedChunks = [];
+      receivedBytes = 0;
+      totalFileSize = 0;
       setRemotePeerId(conn.peer);
       console.log("Peer " + remotePeerId() + " is connected");
-      toast.success("Connected to the Client " + remotePeerId());
-      receivedChunks = []; // Clear the chunks for a new transfer
-      receivedBytes = 0; // Reset the received bytes counter
-      totalFileSize = 0; // Reset total file size for new transfer
-
-      conn.on("data", (data) => {
-        if (data.fileSize) {
-          // Set total file size when the first chunk is received
-          totalFileSize = data.fileSize;
-        }
-        if (data.fileChunk) {
-          // Accumulate the file chunks
-          receivedChunks.push(data.fileChunk);
-          receivedBytes += data.fileChunk.byteLength;
-
-          // Update receive progress
-          setReceiveProgress((receivedBytes / totalFileSize) * 100);
-
-          // If transfer is complete
-        } else if (data.fileComplete) {
-          const blob = new Blob(receivedChunks);
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = data.fileName; // Use the original file name
-          a.click();
-
-          // Reset the chunks for future transfers
-          receivedChunks = [];
-          receivedBytes = 0;
-          setReceiveProgress(0); // Reset progress bar after download
-          toast.success("Recieved file: " + data.fileName);
-        }
-      });
+      // toast.success("Connected to the Client " + remotePeerId());
+      console.log(connRef);
     });
 
     onCleanup(() => {
@@ -157,19 +130,60 @@ function App() {
     });
   });
 
-  const connectToPeer = () => {
+  const connectToPeer = (clientId) => {
     if (peerRef && remotePeerId()) {
       const conn = peerRef.connect(remotePeerId());
       connRef = conn;
-      // listen for connection
       conn.on("open", () => {
         console.log("Connected to peer: ", remotePeerId());
         toast.success("Connected to the Client " + remotePeerName());
+        socket.emit("connectPeer", {
+          clientId,
+          from: peerId(),
+          name: peerName(),
+        });
       });
       // Listen for disconnection event and show an alert
       conn.on("close", () => {
         console.log("Connection to peer was disconnected.");
+        setFilename("");
+        setProgress(0);
         toast.error("The client was disconnected");
+      });
+      conn.on("data", (data) => {
+        if (data.fileSize) {
+          totalFileSize = data.fileSize;
+        }
+        if (data.fileName) {
+          setFilename(data.fileName || "File");
+        }
+
+        if (data.fileChunk) {
+          // Accumulate the file chunks
+          receivedChunks.push(data.fileChunk);
+          receivedBytes += data.fileChunk.byteLength;
+
+          // Update receive progress
+          setProgress((receivedBytes / totalFileSize) * 100);
+
+          // Send acknowledgment to sender after processing each chunk
+          conn.send({ ack: true });
+        } else if (data.fileComplete) {
+          // Once file is fully received
+          const blob = new Blob(receivedChunks);
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = data.fileName;
+          a.click();
+
+          // Reset state for future transfers
+          receivedChunks = [];
+          receivedBytes = 0;
+          setProgress(0);
+          setFilename("");
+          toast.success("Received file: " + data.fileName);
+        }
       });
     }
   };
@@ -177,41 +191,13 @@ function App() {
   const sendFile = () => {
     if (connRef && fileToSend()) {
       const file = fileToSend();
-      showToastWithProgress();
-      const chunkSize = 16 * 1024; // 16KB per chunk
+      setFilename(file.name);
+      const chunkSize = 256 * 1024; // 16KB per chunk
       const totalChunks = Math.ceil(file.size / chunkSize);
       let currentChunk = 0;
 
       const reader = new FileReader();
 
-      reader.onload = (e) => {
-        if (e.target.readyState === FileReader.DONE) {
-          // Send each chunk as `fileChunk`
-          connRef.send({
-            fileChunk: e.target.result,
-          });
-
-          // Update progress
-          currentChunk++;
-          setProgress((currentChunk / totalChunks) * 100);
-
-          if (currentChunk < totalChunks) {
-            // Continue reading the next chunk
-            readNextChunk();
-          } else {
-            // Once all chunks are sent, notify the receiver that the file transfer is complete
-            connRef.send({
-              fileComplete: true,
-              fileName: file.name,
-            });
-            console.log("File sent successfully!");
-          }
-        }
-      };
-      // Send total file size with the first chunk
-      connRef.send({
-        fileSize: file.size,
-      });
       const readNextChunk = () => {
         const start = currentChunk * chunkSize;
         const end = Math.min(start + chunkSize, file.size);
@@ -219,14 +205,58 @@ function App() {
         reader.readAsArrayBuffer(blob);
       };
 
+      // Wait for acknowledgment before sending the next chunk
+      const handleAck = () => {
+        currentChunk++;
+        setProgress((currentChunk / totalChunks) * 100);
+        if (currentChunk < totalChunks) {
+          readNextChunk();
+        } else {
+          // File transfer complete
+          connRef.send({
+            fileComplete: true,
+            fileName: file.name,
+          });
+          console.log("File sent successfully!");
+        }
+      };
+
+      // Handle FileReader result and send chunks
+      reader.onload = (e) => {
+        if (e.target.readyState === FileReader.DONE) {
+          // Send the chunk and wait for acknowledgment
+          connRef.send({
+            fileChunk: e.target.result,
+          });
+        }
+      };
+
+      // Send file size info and start the process
+      connRef.send({
+        fileSize: file.size,
+        fileName: file.name,
+      });
+
       // Start reading the first chunk
       readNextChunk();
+
+      // Listen for acknowledgment from the receiving peer
+      connRef.on("data", (data) => {
+        if (data.ack) {
+          handleAck();
+        }
+      });
     }
   };
 
   // Listen for the list of connected clients
   socket.on("clients", (clients) => {
     setClients(clients);
+  });
+  socket.on("connectionRequest", ({ from, name }) => {
+    setRemotePeerName(name);
+    connectToPeer(from);
+    if (remotePeerId() != from) setRemotePeerId(from);
   });
   return (
     <div>
@@ -242,36 +272,14 @@ function App() {
         <p>You are</p>
         <p class="font-semibold">{peerName()}</p>
       </div>
-      <div class="border-2 border-teal-700 rounded-md p-2 m-2 flex flex-col min-h-32">
-        <h2 class="text-xl font-semibold">Available Clients</h2>
-        <ul class="flex flex-col gap-2">
-          {console.log(clients())}
-          {Object.values(clients()).map(
-            (client) =>
-              client.peerId &&
-              client.peerId != peerId() && (
-                <li
-                  key={client.id}
-                  class="flex flex-col md:flex-row gap-2 items-center"
-                >
-                  <p>{client.peerName}</p>
-                  {client.id !== peerId() && (
-                    <button
-                      class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full"
-                      onClick={() => {
-                        setRemotePeerId(client.peerId);
-                        setRemotePeerName(client.peerName);
-                        connectToPeer();
-                      }}
-                    >
-                      Connect
-                    </button>
-                  )}
-                </li>
-              )
-          )}
-        </ul>
-      </div>
+      <ClientList
+        clientList={clients()}
+        setRemotePeerId={setRemotePeerId}
+        setRemotePeerName={setRemotePeerName}
+        connectToPeer={connectToPeer}
+        peerId={peerId()}
+        remotePeerName={remotePeerName()}
+      />
       <div class="" hidden>
         <input
           type="text"
@@ -295,30 +303,10 @@ function App() {
           Send File
         </button>
       </div>
-      <div style={{ marginTop: "20px" }}>
-        <p>Progress: {Math.round(progress())}%</p>
-        <div style={{ width: "100%", backgroundColor: "#ddd" }}>
-          <div
-            style={{
-              width: `${progress()}%`,
-              height: "20px",
-              backgroundColor: "#4caf50",
-            }}
-          />
-        </div>
-      </div>
-      <div style={{ marginTop: "20px" }}>
-        <p>Receiving Progress: {Math.round(receiveProgress())}%</p>
-        <div style={{ width: "100%", backgroundColor: "#ddd" }}>
-          <div
-            style={{
-              width: `${receiveProgress()}%`,
-              height: "20px",
-              backgroundColor: "#f44336",
-            }}
-          />
-        </div>
-      </div>
+      {fileName() && (
+        <FileProgressCard filename={fileName()} progress={progress()} />
+      )}
+
       <Toaster />
     </div>
   );
