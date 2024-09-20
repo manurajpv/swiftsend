@@ -120,6 +120,36 @@ function App() {
       setRemotePeerId(conn.peer);
       console.log("Peer " + remotePeerId() + " is connected");
       // toast.success("Connected to the Client " + remotePeerId());
+      console.log(connRef);
+    });
+
+    onCleanup(() => {
+      if (peerRef) {
+        peerRef.destroy();
+      }
+    });
+  });
+
+  const connectToPeer = (clientId) => {
+    if (peerRef && remotePeerId()) {
+      const conn = peerRef.connect(remotePeerId());
+      connRef = conn;
+      conn.on("open", () => {
+        console.log("Connected to peer: ", remotePeerId());
+        toast.success("Connected to the Client " + remotePeerName());
+        socket.emit("connectPeer", {
+          clientId,
+          from: peerId(),
+          name: peerName(),
+        });
+      });
+      // Listen for disconnection event and show an alert
+      conn.on("close", () => {
+        console.log("Connection to peer was disconnected.");
+        setFilename("");
+        setProgress(0);
+        toast.error("The client was disconnected");
+      });
       conn.on("data", (data) => {
         if (data.fileSize) {
           totalFileSize = data.fileSize;
@@ -155,43 +185,14 @@ function App() {
           toast.success("Received file: " + data.fileName);
         }
       });
-    });
-
-    onCleanup(() => {
-      if (peerRef) {
-        peerRef.destroy();
-      }
-    });
-  });
-
-  const connectToPeer = (clientId) => {
-    if (peerRef && remotePeerId()) {
-      const conn = peerRef.connect(remotePeerId());
-      connRef = conn;
-      // listen for connection
-      conn.on("open", () => {
-        console.log("Connected to peer: ", remotePeerId());
-        toast.success("Connected to the Client " + remotePeerName());
-        socket.emit("connectPeer", {
-          clientId,
-          from: peerId(),
-          name: peerName(),
-        });
-      });
-      // Listen for disconnection event and show an alert
-      conn.on("close", () => {
-        console.log("Connection to peer was disconnected.");
-        toast.error("The client was disconnected");
-      });
     }
   };
 
   const sendFile = () => {
-    console.log(connRef,fileToSend())
     if (connRef && fileToSend()) {
       const file = fileToSend();
       setFilename(file.name);
-      const chunkSize = 16 * 1024; // 16KB per chunk
+      const chunkSize = 256 * 1024; // 16KB per chunk
       const totalChunks = Math.ceil(file.size / chunkSize);
       let currentChunk = 0;
 
@@ -233,6 +234,7 @@ function App() {
       // Send file size info and start the process
       connRef.send({
         fileSize: file.size,
+        fileName: file.name,
       });
 
       // Start reading the first chunk
@@ -252,9 +254,9 @@ function App() {
     setClients(clients);
   });
   socket.on("connectionRequest", ({ from, name }) => {
-    setRemotePeerId(from);
     setRemotePeerName(name);
     connectToPeer(from);
+    if (remotePeerId() != from) setRemotePeerId(from);
   });
   return (
     <div>
