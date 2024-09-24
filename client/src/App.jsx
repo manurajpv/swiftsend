@@ -148,6 +148,7 @@ function App() {
         console.log("Connection to peer was disconnected.");
         setFilename("");
         setProgress(0);
+        setRemotePeerId("")
         toast.error("The client was disconnected");
       });
       conn.on("data", (data) => {
