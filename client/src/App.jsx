@@ -204,7 +204,7 @@ function App() {
 
   return (
     <ConfigProvider theme={{ algorithm: theme.defaultAlgorithm }}>
-      <HeaderSection />
+      <HeaderSection style={{zindex:"100"}} />
       {!peerName ? (
         <div
           style={{
