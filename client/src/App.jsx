@@ -9,9 +9,15 @@ import ClientList from "./components/ClientList";
 import HeaderSection from "./components/Header";
 import HashLoader from "react-spinners/HashLoader";
 import AvatarIcon from "./components/AvatarIcon";
+import {
+  ClientContext,
+  PeerContext,
+  RemotePeerContext,
+} from "./utils/Contexts";
+
 const { Title } = Typography;
 // Connect to the backend server
-const socket = io(import.meta.env.REACT_APP_BACKEND_HOST);
+const socket = io(import.meta.env.VITE_BACKEND_HOST);
 
 function App() {
   const [clients, setClients] = useState({});
@@ -22,6 +28,7 @@ function App() {
   const [fileToSend, setFileToSend] = useState(null);
   const [progress, setProgress] = useState(0);
   const [fileName, setFilename] = useState("");
+  const [ip, setIP] = useState("");
 
   const peerRef = useRef(null);
   const connRef = useRef(null);
@@ -61,16 +68,25 @@ function App() {
     const randomAnimal = animals[Math.floor(Math.random() * animals.length)];
     return `${randomVerb} ${randomAnimal}`;
   };
-
+  const fetchIP = async () => {
+    //fetch browser IP address
+    const res = await fetch("https://api.ipify.org?format=json");
+    const data = await res.json();
+    console.log(data);
+    setIP(data.ip);
+  };
   useEffect(() => {
+    if (!ip) fetchIP();
+
     // Initialize PeerJS
     peerRef.current = new Peer();
 
-    peerRef.current.on("open", (id) => {
+    peerRef.current.on("open", async (id) => {
+      console.log(id);
       setPeerId(id);
       const name = generatePeerName();
       setPeerName(name);
-      socket.emit("registerPeer", { id, name });
+      socket.emit("registerPeer", { id, name, ip });
     });
 
     peerRef.current.on("connection", (conn) => {
@@ -88,7 +104,7 @@ function App() {
         peerRef.current.destroy();
       }
     };
-  }, []);
+  }, [ip]);
 
   const handleData = (data) => {
     if (data.fileSize) {
@@ -101,9 +117,7 @@ function App() {
     if (data.fileChunk) {
       receivedChunks.current.push(data.fileChunk);
       receivedBytes.current += data.fileChunk.byteLength;
-
       setProgress((receivedBytes.current / totalFileSize.current) * 100);
-
       connRef.current.send({ ack: true });
     } else if (data.fileComplete) {
       const blob = new Blob(receivedChunks.current);
@@ -122,6 +136,7 @@ function App() {
   };
 
   const connectToPeer = (clientId) => {
+    console.log(clientId);
     if (peerRef.current && remotePeerId) {
       const conn = peerRef.current.connect(remotePeerId);
       connRef.current = conn;
@@ -204,7 +219,7 @@ function App() {
 
   return (
     <ConfigProvider theme={{ algorithm: theme.defaultAlgorithm }}>
-      <HeaderSection style={{zindex:"100"}} />
+      <HeaderSection style={{ zindex: "100" }} />
       {!peerName ? (
         <div
           style={{
@@ -266,6 +281,20 @@ function App() {
         // </>
         <>
           <AvatarIcon peerName={peerName} />
+          <ClientContext.Provider value={clients}>
+            <PeerContext.Provider value={{ peerId, ip }}>
+              <RemotePeerContext.Provider
+                value={{
+                  remotePeerName,
+                  setRemotePeerId,
+                  setRemotePeerName,
+                  connectToPeer,
+                }}
+              >
+                <ClientList />
+              </RemotePeerContext.Provider>
+            </PeerContext.Provider>
+          </ClientContext.Provider>
         </>
       )}
 

@@ -36,6 +36,7 @@ io.on("connection", (socket) => {
     if (clients[socket.id]) {
       clients[socket.id]["peerId"] = data.id;
       clients[socket.id]["peerName"] = data.name;
+      clients[socket.id]["ip_addr"] = data.ip;
       console.log("peer connected ", data.id);
       io.emit("clients", clients);
     }

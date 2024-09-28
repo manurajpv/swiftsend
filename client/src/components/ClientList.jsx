@@ -1,43 +1,44 @@
-function ClientList(props) {
+import ClientAvatar from "./ClientAvatar";
+import { useContext } from "react";
+import {
+  ClientContext,
+  PeerContext,
+  RemotePeerContext,
+} from "../utils/Contexts";
+
+function ClientList() {
+  const clients = useContext(ClientContext);
+  const peer = useContext(PeerContext);
+  const remotePeer = useContext(RemotePeerContext);
   return (
-    <div className="border-2 border-teal-700 rounded-md p-2 m-2 flex flex-col min-h-32">
-      <h2 className="text-xl font-semibold">Available Clients</h2>
-      <ul className="flex flex-col gap-2">
-        {console.log(props.clientList)}
-        {Object.values(props.clientList).map(
-          (client) =>
-            "peerId" in client &&
-            client.peerId != props.peerId && (
-              <li
-                key={client.id}
-                className="flex flex-col md:flex-row gap-2 items-center"
-              >
-                <p>{client.peerName}</p>
-                {console.log("remote ", client.remotePeerName)}
-                {client.id !== props.peerId &&
-                  (props.remotePeerName !== client.peerName ? (
+    <div>
+      {console.log(clients, peer, remotePeer)}
+      {Object.values(clients).map(
+        (client) =>
+          "peerId" in client &&
+          client.peerId != peer.peerId && (
+            <div key={client.id}>
+              {client.id !== peer.peerId &&
+                peer.ip === client.ip_addr &&
+                (remotePeer.remotePeerName !== client.peerName ? (
+                  <>
+                    <ClientAvatar client={client} />
                     <button
-                      className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full"
                       onClick={() => {
-                        props.setRemotePeerId(client.peerId);
-                        props.setRemotePeerName(client.peerName);
-                        props.connectToPeer(client.id);
+                        remotePeer.setRemotePeerId(client.peerId);
+                        remotePeer.setRemotePeerName(client.peerName);
+                        remotePeer.connectToPeer(client.id);
                       }}
                     >
                       Connect
                     </button>
-                  ) : (
-                    <span
-                      className="bg-green-500 hover:bg-green-700 text-white font-bold py-2
-px-4 rounded-full"
-                    >
-                      Connected
-                    </span>
-                  ))}
-              </li>
-            )
-        )}
-      </ul>
+                  </>
+                ) : (
+                  <span>Connected</span>
+                ))}
+            </div>
+          )
+      )}
     </div>
   );
 }
