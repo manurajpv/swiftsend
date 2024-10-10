@@ -9,4 +9,6 @@ export const RemotePeerContext = createContext({
   setRemotePeerId: () => {},
   setRemotePeerName: () => {},
   connectToPeer: () => {},
+  sendFile: () => {},
+  setFileToSend: () => {},
 });

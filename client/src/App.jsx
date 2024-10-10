@@ -136,7 +136,8 @@ function App() {
   };
 
   const connectToPeer = (clientId) => {
-    console.log(clientId);
+    console.log("peerRef: ",peerRef.current);
+    console.log("remotePeerId: ",remotePeerId);
     if (peerRef.current && remotePeerId) {
       const conn = peerRef.current.connect(remotePeerId);
       connRef.current = conn;
@@ -161,6 +162,7 @@ function App() {
   };
 
   const sendFile = () => {
+    console.log(fileToSend)
     if (connRef.current && fileToSend) {
       const file = fileToSend;
       setFilename(file.name);
@@ -207,7 +209,12 @@ function App() {
       });
     }
   };
-
+  // socket.on("clients", setClients);
+  // socket.on("connectionRequest", ({ from, name }) => {
+  //   setRemotePeerName(name);
+  //   connectToPeer(from);
+  //   setRemotePeerId(from);
+  // });
   useEffect(() => {
     socket.on("clients", setClients);
     socket.on("connectionRequest", ({ from, name }) => {
@@ -215,7 +222,7 @@ function App() {
       connectToPeer(from);
       setRemotePeerId(from);
     });
-  }, []);
+  }, [remotePeerId,remotePeerName]);
 
   return (
     <ConfigProvider theme={{ algorithm: theme.defaultAlgorithm }}>
@@ -289,6 +296,8 @@ function App() {
                   setRemotePeerId,
                   setRemotePeerName,
                   connectToPeer,
+                  sendFile,
+                  setFileToSend
                 }}
               >
                 <ClientList />

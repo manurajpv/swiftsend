@@ -23,18 +23,12 @@ function ClientList() {
                 (remotePeer.remotePeerName !== client.peerName ? (
                   <>
                     <ClientAvatar client={client} />
-                    <button
-                      onClick={() => {
-                        remotePeer.setRemotePeerId(client.peerId);
-                        remotePeer.setRemotePeerName(client.peerName);
-                        remotePeer.connectToPeer(client.id);
-                      }}
-                    >
-                      Connect
-                    </button>
                   </>
                 ) : (
-                  <span>Connected</span>
+                  <>
+                    <ClientAvatar client={client} />
+                    <span>Connected</span>
+                  </>
                 ))}
             </div>
           )
