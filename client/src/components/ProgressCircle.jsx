@@ -10,7 +10,7 @@ const ProgressCircle = ({ children }) => {
     <div>
       <Flex vertical gap="small" style={{ width: 180 }} align="center">
         {children}
-        {remotePeer.remotePeerName && (
+        {remotePeer.remotePeerName && progressContext.progress>0 && (
           <Progress percent={progressContext.progress} size="small" />
         )}
       </Flex>

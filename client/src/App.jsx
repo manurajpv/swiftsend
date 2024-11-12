@@ -144,7 +144,6 @@ function App() {
 
       receivedChunks.current = [];
       receivedBytes.current = 0;
-      setProgress(0);
       setFilename("");
       toast.success("Received file: " + data.fileName);
     }
@@ -213,9 +212,8 @@ function App() {
       connRef.current.on("data", (data) => {
         if (data.ack) {
           currentChunk++;
-          setProgress(Math.floor(currentChunk / totalChunks) * 100);
-          console.log((currentChunk / totalChunks) * 100);
-          console.log(progress);
+          setProgress(Math.floor((currentChunk / totalChunks) * 100));
+          console.log(Math.floor((currentChunk / totalChunks) * 100));
           if (currentChunk < totalChunks) {
             readNextChunk();
           } else {

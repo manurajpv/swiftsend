@@ -3,21 +3,26 @@ import { UploadOutlined, SendOutlined } from "@ant-design/icons";
 import { Avatar, Space, Popover, Upload, Button } from "antd";
 import AvatarIcons from "../utils/avatarIcons.js";
 import { Typography } from "antd";
-import { RemotePeerContext } from "../utils/Contexts";
+import { RemotePeerContext, FileProgressContext } from "../utils/Contexts";
 
 const { Title } = Typography;
 
 function ClientAvatar(props) {
   const remotePeer = useContext(RemotePeerContext);
+  const fileProgress = useContext(FileProgressContext);
   const [clickedPeer, setClickedPeer] = useState(null);
   const [fileList, setFileList] = useState([]);
   const [uploading, setUploading] = useState(false);
+  useEffect(() => {
+    if (fileProgress.progress === 100) setUploading(false);
+  }, [fileProgress.progress]);
   const handleUpload = () => {
     console.log(fileList);
     setUploading(true);
     remotePeer.sendFile();
   };
   const handleChange = (info) => {
+    setFileList([]);
     console.log(info);
     if (info.fileList.length > 0) {
       setFileList([info.fileList[0].originFileObj]);
@@ -50,7 +55,11 @@ function ClientAvatar(props) {
   };
   const content = (
     <div>
-      <Upload onChange={handleChange} showUploadList={false}>
+      <Upload
+        uploadProps={uploadProps}
+        onChange={handleChange}
+        showUploadList={false}
+      >
         <Button icon={<UploadOutlined />}> Select File</Button>
       </Upload>
       <Button
