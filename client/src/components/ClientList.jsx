@@ -20,7 +20,7 @@ function ClientList() {
       const headerHeight = 64; // taking 16px as 1 rem and multiply my header size of 4rem
       // Calculate random top and left positions
       const top = Math.floor(
-        Math.random() * (windowHeight - 100) + headerHeight
+        Math.random() * (windowHeight - (headerHeight) - 100 - 100) + headerHeight
       );
       const left = Math.floor(Math.random() * (windowWidth - 100));
       return { top, left };
