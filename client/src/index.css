@@ -1,17 +1,57 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+.sonar-container {
+  z-index: -1;
+  position: absolute; /* Make it position relative to the page or container */
+  bottom: 0rem; /* 1 rem above the bottom */
+  left: 50%; /* Align to the horizontal center */
+  transform: translateX(-50%); /* Center the element horizontally */
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+.sonar-content {
+  position: absolute;
+  z-index: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.ripple {
+  z-index: -1;
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: 1px solid #63B4F5;
+  opacity: 1;
+  animation: rippleAnimation 10s infinite;
+}
+
+@keyframes rippleAnimation {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(20);
+    opacity: 0;
+  }
+}
+
+.sonar-element-wrapper {
+  display: flex;
+  justify-content: center;
+  position: absolute;
+  bottom: 6rem;
+  width: 10rem;
 }

@@ -1,47 +1,76 @@
-import { createSignal, createEffect, onCleanup } from "solid-js";
+import ClientAvatar from "./ClientAvatar";
+import { useContext, useState, useEffect } from "react";
+import {
+  ClientContext,
+  PeerContext,
+  RemotePeerContext,
+} from "../utils/Contexts";
+import ProgressCircle from "./ProgressCircle";
 
-function ClientList(props) {
-  const [clients, setClients] = createSignal({});
-  if (props.clientList) setClients(props.clientList);
+function ClientList() {
+  const clients = useContext(ClientContext);
+  const peer = useContext(PeerContext);
+  const remotePeer = useContext(RemotePeerContext);
+  const [position, setPosition] = useState({ top: 0, left: 0 });
+  useEffect(() => {
+    // Function to get a random position
+    const getRandomPosition = () => {
+      const windowHeight = window.innerHeight;
+      const windowWidth = window.innerWidth;
+      const headerHeight = 64; // taking 16px as 1 rem and multiply my header size of 4rem
+      // Calculate random top and left positions
+      const top = Math.floor(
+        Math.random() * (windowHeight - (headerHeight) - 100 - 100) + headerHeight
+      );
+      const left = Math.floor(Math.random() * (windowWidth - 100));
+      return { top, left };
+    };
+    // Set the position to a random spot
+    setPosition(getRandomPosition());
+  }, []);
   return (
-    <div class="border-2 border-teal-700 rounded-md p-2 m-2 flex flex-col min-h-32">
-      <h2 class="text-xl font-semibold">Available Clients</h2>
-      <ul class="flex flex-col gap-2">
-        {console.log(props.clientList)}
-        {Object.values(props.clientList).map(
-          (client) =>
-            "peerId" in client &&
-            client.peerId != props.peerId && (
-              <li
-                key={client.id}
-                class="flex flex-col md:flex-row gap-2 items-center"
-              >
-                <p>{client.peerName}</p>
-                {console.log("remote ",client.remotePeerName)}
-                {client.id !== props.peerId &&
-                  (props.remotePeerName !== client.peerName ? (
-                    <button
-                      class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full"
-                      onClick={() => {
-                        props.setRemotePeerId(client.peerId);
-                        props.setRemotePeerName(client.peerName);
-                        props.connectToPeer(client.id);
+    <div>
+      {Object.values(clients).map(
+        (client) =>
+          "peerId" in client &&
+          client.peerId != peer.peerId && (
+            <div key={client.id}>
+              {client.id !== peer.peerId &&
+                peer.ip === client.ip_addr &&
+                (remotePeer.remotePeerName !== client.peerName ? (
+                  <>
+                    <div
+                      style={{
+                        position: "absolute",
+                        width: "fit-content",
+                        top: `${position.top}px`,
+                        left: `${position.left}px`,
                       }}
                     >
-                      Connect
-                    </button>
-                  ) : (
-                    <span
-                      class="bg-green-500 hover:bg-green-700 text-white font-bold py-2
-                      px-4 rounded-full"
+                      <ProgressCircle>
+                        <ClientAvatar client={client} />
+                      </ProgressCircle>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div
+                      style={{
+                        position: "absolute",
+                        width: "fit-content",
+                        top: `${position.top}px`,
+                        left: `${position.left}px`,
+                      }}
                     >
-                      Connected
-                    </span>
-                  ))}
-              </li>
-            )
-        )}
-      </ul>
+                      <ProgressCircle>
+                        <ClientAvatar client={client} />
+                      </ProgressCircle>
+                    </div>
+                  </>
+                ))}
+            </div>
+          )
+      )}
     </div>
   );
 }
