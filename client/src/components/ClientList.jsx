@@ -1,18 +1,35 @@
 import ClientAvatar from "./ClientAvatar";
-import { useContext } from "react";
+import { useContext, useState, useEffect } from "react";
 import {
   ClientContext,
   PeerContext,
   RemotePeerContext,
 } from "../utils/Contexts";
+import ProgressCircle from "./ProgressCircle";
 
 function ClientList() {
   const clients = useContext(ClientContext);
   const peer = useContext(PeerContext);
   const remotePeer = useContext(RemotePeerContext);
+  const [position, setPosition] = useState({ top: 0, left: 0 });
+  useEffect(() => {
+    // Function to get a random position
+    const getRandomPosition = () => {
+      const windowHeight = window.innerHeight;
+      const windowWidth = window.innerWidth;
+      const headerHeight = 64; // taking 16px as 1 rem and multiply my header size of 4rem
+      // Calculate random top and left positions
+      const top = Math.floor(
+        Math.random() * (windowHeight - 100) + headerHeight
+      );
+      const left = Math.floor(Math.random() * (windowWidth - 100));
+      return { top, left };
+    };
+    // Set the position to a random spot
+    setPosition(getRandomPosition());
+  }, []);
   return (
     <div>
-      {console.log(clients, peer, remotePeer)}
       {Object.values(clients).map(
         (client) =>
           "peerId" in client &&
@@ -22,12 +39,33 @@ function ClientList() {
                 peer.ip === client.ip_addr &&
                 (remotePeer.remotePeerName !== client.peerName ? (
                   <>
-                    <ClientAvatar client={client} />
+                    <div
+                      style={{
+                        position: "absolute",
+                        width: "fit-content",
+                        top: `${position.top}px`,
+                        left: `${position.left}px`,
+                      }}
+                    >
+                      <ProgressCircle>
+                        <ClientAvatar client={client} />
+                      </ProgressCircle>
+                    </div>
                   </>
                 ) : (
                   <>
-                    <ClientAvatar client={client} />
-                    <span>Connected</span>
+                    <div
+                      style={{
+                        position: "absolute",
+                        width: "fit-content",
+                        top: `${position.top}px`,
+                        left: `${position.left}px`,
+                      }}
+                    >
+                      <ProgressCircle>
+                        <ClientAvatar client={client} />
+                      </ProgressCircle>
+                    </div>
                   </>
                 ))}
             </div>

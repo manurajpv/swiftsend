@@ -13,6 +13,7 @@ import {
   ClientContext,
   PeerContext,
   RemotePeerContext,
+  FileProgressContext,
 } from "./utils/Contexts";
 
 const { Title } = Typography;
@@ -28,10 +29,10 @@ function App() {
   const [fileToSend, setFileToSend] = useState(null);
   const [progress, setProgress] = useState(0);
   const [fileName, setFilename] = useState("");
+  const [peerRef, setPeerRef] = useState(useRef(null));
+  const [connRef, setconnRef] = useState(useRef(null));
   const [ip, setIP] = useState("");
 
-  const peerRef = useRef(null);
-  const connRef = useRef(null);
   const receivedChunks = useRef([]);
   const totalFileSize = useRef(0);
   const receivedBytes = useRef(0);
@@ -75,6 +76,18 @@ function App() {
     console.log(data);
     setIP(data.ip);
   };
+  const getPeerNameByPeerId = (peerId) => {
+    for (let key in clients) {
+      if (clients[key].peerId === peerId) {
+        return clients[key].peerName;
+      }
+    }
+    return "";
+  };
+  useEffect(() => {
+    setRemotePeerName(getPeerNameByPeerId(remotePeerId));
+    connectToPeer(remotePeerId, getPeerNameByPeerId(remotePeerId));
+  }, [remotePeerId]);
   useEffect(() => {
     if (!ip) fetchIP();
 
@@ -117,7 +130,9 @@ function App() {
     if (data.fileChunk) {
       receivedChunks.current.push(data.fileChunk);
       receivedBytes.current += data.fileChunk.byteLength;
-      setProgress((receivedBytes.current / totalFileSize.current) * 100);
+      setProgress(
+        Math.ceil((receivedBytes.current / totalFileSize.current) * 100)
+      );
       connRef.current.send({ ack: true });
     } else if (data.fileComplete) {
       const blob = new Blob(receivedChunks.current);
@@ -135,15 +150,18 @@ function App() {
     }
   };
 
-  const connectToPeer = (clientId) => {
-    console.log("peerRef: ",peerRef.current);
-    console.log("remotePeerId: ",remotePeerId);
+  const connectToPeer = (clientId, clientName = "") => {
+    console.log("peerRef: ", peerRef.current);
+    console.log("remotePeerId: ", remotePeerId);
     if (peerRef.current && remotePeerId) {
       const conn = peerRef.current.connect(remotePeerId);
       connRef.current = conn;
 
       conn.on("open", () => {
-        toast.success("Connected to the Client " + remotePeerName);
+        toast.success(
+          "Connected to the Client " +
+            (clientName ? clientName : remotePeerName)
+        );
         socket.emit("connectPeer", {
           clientId,
           from: peerId,
@@ -162,7 +180,7 @@ function App() {
   };
 
   const sendFile = () => {
-    console.log(fileToSend)
+    console.log(fileToSend);
     if (connRef.current && fileToSend) {
       const file = fileToSend;
       setFilename(file.name);
@@ -195,7 +213,9 @@ function App() {
       connRef.current.on("data", (data) => {
         if (data.ack) {
           currentChunk++;
-          setProgress((currentChunk / totalChunks) * 100);
+          setProgress(Math.floor(currentChunk / totalChunks) * 100);
+          console.log((currentChunk / totalChunks) * 100);
+          console.log(progress);
           if (currentChunk < totalChunks) {
             readNextChunk();
           } else {
@@ -222,7 +242,7 @@ function App() {
       connectToPeer(from);
       setRemotePeerId(from);
     });
-  }, [remotePeerId,remotePeerName]);
+  }, [remotePeerId, remotePeerName]);
 
   return (
     <ConfigProvider theme={{ algorithm: theme.defaultAlgorithm }}>
@@ -287,23 +307,25 @@ function App() {
         //   )}
         // </>
         <>
-          <AvatarIcon peerName={peerName} />
-          <ClientContext.Provider value={clients}>
-            <PeerContext.Provider value={{ peerId, ip }}>
-              <RemotePeerContext.Provider
-                value={{
-                  remotePeerName,
-                  setRemotePeerId,
-                  setRemotePeerName,
-                  connectToPeer,
-                  sendFile,
-                  setFileToSend
-                }}
-              >
-                <ClientList />
-              </RemotePeerContext.Provider>
-            </PeerContext.Provider>
-          </ClientContext.Provider>
+          <FileProgressContext.Provider value={{ progress }}>
+            <AvatarIcon peerName={peerName} />
+            <ClientContext.Provider value={clients}>
+              <PeerContext.Provider value={{ peerId, ip }}>
+                <RemotePeerContext.Provider
+                  value={{
+                    remotePeerName,
+                    setRemotePeerId,
+                    setRemotePeerName,
+                    connectToPeer,
+                    sendFile,
+                    setFileToSend,
+                  }}
+                >
+                  <ClientList />
+                </RemotePeerContext.Provider>
+              </PeerContext.Provider>
+            </ClientContext.Provider>
+          </FileProgressContext.Provider>
         </>
       )}
 

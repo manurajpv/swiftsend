@@ -8,7 +8,10 @@ export const RemotePeerContext = createContext({
   remotePeerName: "",
   setRemotePeerId: () => {},
   setRemotePeerName: () => {},
-  connectToPeer: () => {},
   sendFile: () => {},
   setFileToSend: () => {},
+});
+
+export const FileProgressContext = createContext({
+  progress: Number,
 });
