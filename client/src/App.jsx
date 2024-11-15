@@ -4,7 +4,6 @@ import { Typography } from "antd";
 import io from "socket.io-client";
 import Peer from "peerjs";
 import toast, { Toaster } from "react-hot-toast"; // Use react-hot-toast for notifications
-import FileProgressCard from "./components/FileprogressCard";
 import ClientList from "./components/ClientList";
 import HeaderSection from "./components/Header";
 import HashLoader from "react-spinners/HashLoader";
@@ -227,12 +226,6 @@ function App() {
       });
     }
   };
-  // socket.on("clients", setClients);
-  // socket.on("connectionRequest", ({ from, name }) => {
-  //   setRemotePeerName(name);
-  //   connectToPeer(from);
-  //   setRemotePeerId(from);
-  // });
   useEffect(() => {
     socket.on("clients", setClients);
     socket.on("connectionRequest", ({ from, name }) => {
@@ -260,50 +253,6 @@ function App() {
           <Title level={4}>Loading</Title>
         </div>
       ) : (
-        // <>
-        //   <div className="p-5 flex gap-2">
-        //     <p>You are</p>
-        //     <p className="font-semibold">{peerName}</p>
-        //   </div>
-
-        //   <ClientList
-        //     clientList={clients}
-        //     setRemotePeerId={setRemotePeerId}
-        //     setRemotePeerName={setRemotePeerName}
-        //     connectToPeer={connectToPeer}
-        //     peerId={peerId}
-        //     remotePeerName={remotePeerName}
-        //   />
-
-        //   <div hidden>
-        //     <input
-        //       type="text"
-        //       placeholder="Enter remote peer ID"
-        //       value={remotePeerId}
-        //       onChange={(e) => setRemotePeerId(e.target.value)}
-        //     />
-        //     <button onClick={connectToPeer}>Connect</button>
-        //   </div>
-
-        //   <div className="px-5 py-2 flex flex-col gap-2">
-        //     <input
-        //       type="file"
-        //       onChange={(e) =>
-        //         setFileToSend(e.target.files ? e.target.files[0] : null)
-        //       }
-        //     />
-        //     <button
-        //       className="w-28 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full"
-        //       onClick={sendFile}
-        //     >
-        //       Send File
-        //     </button>
-        //   </div>
-
-        //   {fileName && (
-        //     <FileProgressCard filename={fileName} progress={progress} />
-        //   )}
-        // </>
         <>
           <FileProgressContext.Provider value={{ progress }}>
             <AvatarIcon peerName={peerName} />
