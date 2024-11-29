@@ -1,9 +1,10 @@
-import React, { useContext, useEffect, useState } from "react";
-import { UploadOutlined, SendOutlined } from "@ant-design/icons";
+import { useContext, useEffect, useState } from "react";
+import { UploadOutlined } from "@ant-design/icons";
 import { Avatar, Space, Popover, Upload, Button } from "antd";
 import AvatarIcons from "../utils/avatarIcons.js";
 import { Typography } from "antd";
 import { RemotePeerContext, FileProgressContext } from "../utils/Contexts";
+import PropTypes from "prop-types";
 
 const { Title } = Typography;
 
@@ -14,14 +15,20 @@ function ClientAvatar(props) {
   const [fileList, setFileList] = useState([]);
   const [uploading, setUploading] = useState(false);
   useEffect(() => {
-    if (fileProgress.progress === 100) setUploading(false);
-  }, [fileProgress.progress]);
+    if (fileProgress.progress === 100) {
+      setUploading(false);
+      remotePeer.setFileToSend(null);
+    }
+  }, [fileProgress?.progress, remotePeer]);
   const handleUpload = () => {
     console.log(fileList);
     setUploading(true);
     remotePeer.sendFile();
+    setFileList([]);
+    remotePeer.setFileToSend(null);
   };
   const handleChange = (info) => {
+    if (uploading) return;
     setFileList([]);
     console.log(info);
     if (info.fileList.length > 0) {
@@ -97,7 +104,7 @@ function ClientAvatar(props) {
             <Avatar
               size={64}
               src={
-                props.client.peerName
+                props?.client?.peerName
                   ? AvatarIcons[props.client.peerName.split(" ")[1]]
                   : ""
               }
@@ -115,5 +122,12 @@ function ClientAvatar(props) {
     </div>
   );
 }
+
+ClientAvatar.propTypes = {
+  client: PropTypes.shape({
+    peerName: PropTypes.string,
+    peerId: PropTypes.string,
+  }).isRequired,
+};
 
 export default ClientAvatar;

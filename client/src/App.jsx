@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { ConfigProvider, theme } from "antd";
+import { ConfigProvider, theme, Button } from "antd";
 import { Typography } from "antd";
 import io from "socket.io-client";
 import Peer from "peerjs";
@@ -35,6 +35,9 @@ function App() {
   const receivedChunks = useRef([]);
   const totalFileSize = useRef(0);
   const receivedBytes = useRef(0);
+
+  const [pendingFile, setPendingFile] = useState(null);
+  const [pendingFileInfo, setPendingFileInfo] = useState(null);
 
   const verbs = [
     "Jumping",
@@ -119,6 +122,78 @@ function App() {
   }, [ip]);
 
   const handleData = (data) => {
+    if (data.fileRequest) {
+      // Show confirmation dialog when receiving file request
+      setPendingFileInfo(data);
+      toast(
+        (t) => (
+          <div>
+            <p>{`${data.senderName} wants to send ${data.fileName} (${(
+              data.fileSize /
+              (1024 * 1024)
+            ).toFixed(2)} MB)`}</p>
+            <div>
+              <Button
+                variant="solid"
+                color="primary"
+                onClick={() => {
+                  connRef.current.send({ fileAccepted: true });
+                  setPendingFile(data);
+                  toast.dismiss(t.id);
+                  toast.success("File transfer accepted");
+                }}
+                style={{
+                  marginRight: "8px",
+                  padding: "5px 10px",
+                  cursor: "pointer",
+                }}
+              >
+                Accept
+              </Button>
+              <Button
+                variant="solid"
+                color="danger"
+                onClick={() => {
+                  connRef.current.send({ fileAccepted: false });
+                  setPendingFileInfo(null);
+                  setPendingFile(null);
+                  toast.dismiss(t.id);
+                  toast.error("File transfer declined");
+                }}
+                style={{ padding: "5px 10px", cursor: "pointer" }}
+              >
+                Decline
+              </Button>
+            </div>
+          </div>
+        ),
+        {
+          duration: 30000,
+          position: "top-center",
+          style: {
+            padding: "16px",
+            borderRadius: "8px",
+          },
+        }
+      );
+      return;
+    }
+
+    if (data.fileAccepted === false) {
+      toast.dismiss();
+      toast.error("File transfer was declined");
+      setFileToSend(null);
+      setProgress(0);
+      return;
+    }
+
+    if (data.fileAccepted === true) {
+      toast.dismiss();
+      toast.success("File transfer accepted");
+      startFileTransfer();
+      return;
+    }
+
     if (data.fileSize) {
       totalFileSize.current = data.fileSize;
     }
@@ -178,54 +253,74 @@ function App() {
   };
 
   const sendFile = () => {
-    console.log(fileToSend);
-    if (connRef.current && fileToSend) {
-      const file = fileToSend;
-      setFilename(file.name);
-      const chunkSize = 256 * 1024;
-      const totalChunks = Math.ceil(file.size / chunkSize);
-      let currentChunk = 0;
+    if (!connRef.current || !fileToSend) return;
 
-      const reader = new FileReader();
+    // Clear any existing listeners
+    connRef.current.removeAllListeners("data");
+    connRef.current.on("data", handleData);
 
-      const readNextChunk = () => {
-        const start = currentChunk * chunkSize;
-        const end = Math.min(start + chunkSize, file.size);
-        const blob = file.slice(start, end);
-        reader.readAsArrayBuffer(blob);
-      };
+    // Send request to receiver
+    connRef.current.send({
+      fileRequest: true,
+      fileName: fileToSend.name,
+      fileSize: fileToSend.size,
+      senderName: peerName,
+    });
 
-      reader.onload = (e) => {
-        if (e.target.readyState === FileReader.DONE) {
-          connRef.current.send({ fileChunk: e.target.result });
-        }
-      };
-
-      connRef.current.send({
-        fileSize: file.size,
-        fileName: file.name,
-      });
-
-      readNextChunk();
-
-      connRef.current.on("data", (data) => {
-        if (data.ack) {
-          currentChunk++;
-          setProgress(Math.floor((currentChunk / totalChunks) * 100));
-          console.log(Math.floor((currentChunk / totalChunks) * 100));
-          if (currentChunk < totalChunks) {
-            readNextChunk();
-          } else {
-            connRef.current.send({
-              fileComplete: true,
-              fileName: file.name,
-            });
-            toast.success("File sent successfully!");
-          }
-        }
-      });
-    }
+    toast.loading("Waiting for receiver to accept...", {
+      duration: 30000,
+    });
   };
+
+  const startFileTransfer = () => {
+    if (!connRef.current || !fileToSend) return;
+
+    toast.dismiss();
+    const file = fileToSend;
+    setFilename(file.name);
+    const chunkSize = 256 * 1024;
+    const totalChunks = Math.ceil(file.size / chunkSize);
+    let currentChunk = 0;
+
+    const reader = new FileReader();
+
+    const readNextChunk = () => {
+      const start = currentChunk * chunkSize;
+      const end = Math.min(start + chunkSize, file.size);
+      const blob = file.slice(start, end);
+      reader.readAsArrayBuffer(blob);
+    };
+
+    reader.onload = (e) => {
+      if (e.target.readyState === FileReader.DONE) {
+        connRef.current.send({ fileChunk: e.target.result });
+      }
+    };
+
+    connRef.current.send({
+      fileSize: file.size,
+      fileName: file.name,
+    });
+
+    readNextChunk();
+
+    connRef.current.on("data", (data) => {
+      if (data.ack) {
+        currentChunk++;
+        setProgress(Math.floor((currentChunk / totalChunks) * 100));
+        if (currentChunk < totalChunks) {
+          readNextChunk();
+        } else {
+          connRef.current.send({
+            fileComplete: true,
+            fileName: file.name,
+          });
+          toast.success("File sent successfully!");
+        }
+      }
+    });
+  };
+
   useEffect(() => {
     socket.on("clients", setClients);
     socket.on("connectionRequest", ({ from, name }) => {
@@ -234,6 +329,16 @@ function App() {
       setRemotePeerId(from);
     });
   }, [remotePeerId, remotePeerName]);
+
+  // Add cleanup when component unmounts
+  useEffect(() => {
+    return () => {
+      setPendingFile(null);
+      setPendingFileInfo(null);
+      setProgress(0);
+      setFileToSend(null);
+    };
+  }, []);
 
   return (
     <ConfigProvider theme={{ algorithm: theme.defaultAlgorithm }}>
