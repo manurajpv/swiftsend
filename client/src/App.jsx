@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ConfigProvider, theme, Button } from "antd";
 import { Typography } from "antd";
 import io from "socket.io-client";
@@ -14,6 +14,7 @@ import {
   RemotePeerContext,
   FileProgressContext,
 } from "./utils/Contexts";
+import FileTransferWorker from './utils/fileTransferWorker?worker'; // You'll need to create this file
 
 const { Title } = Typography;
 // Connect to the backend server
@@ -202,24 +203,24 @@ function App() {
     }
 
     if (data.fileChunk) {
-      receivedChunks.current.push(data.fileChunk);
+      // Store chunks in order
+      receivedChunks.current[data.chunkIndex] = data.fileChunk;
       receivedBytes.current += data.fileChunk.byteLength;
-      setProgress(
-        Math.ceil((receivedBytes.current / totalFileSize.current) * 100)
-      );
+      setProgress(Math.ceil((receivedBytes.current / totalFileSize.current) * 100));
       connRef.current.send({ ack: true });
     } else if (data.fileComplete) {
-      const blob = new Blob(receivedChunks.current);
+      // Filter out any undefined chunks and combine
+      const blob = new Blob(receivedChunks.current.filter(chunk => chunk !== undefined));
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
+      const a = document.createElement('a');
       a.href = url;
       a.download = data.fileName;
       a.click();
 
       receivedChunks.current = [];
       receivedBytes.current = 0;
-      setFilename("");
-      toast.success("Received file: " + data.fileName);
+      setFilename('');
+      toast.success('Received file: ' + data.fileName);
     }
   };
 
@@ -278,47 +279,75 @@ function App() {
     toast.dismiss();
     const file = fileToSend;
     setFilename(file.name);
-    const chunkSize = 256 * 1024;
-    const totalChunks = Math.ceil(file.size / chunkSize);
-    let currentChunk = 0;
+    
+    const CHUNK_SIZE = 256 * 1024;
+    const CONCURRENT_CHUNKS = 5; // Number of parallel transfers
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+    let completedChunks = 0;
+    let activeWorkers = 0;
+    const pendingChunks = Array.from({ length: totalChunks }, (_, i) => i);
+    const workers = [];
 
-    const reader = new FileReader();
-
-    const readNextChunk = () => {
-      const start = currentChunk * chunkSize;
-      const end = Math.min(start + chunkSize, file.size);
-      const blob = file.slice(start, end);
-      reader.readAsArrayBuffer(blob);
-    };
-
-    reader.onload = (e) => {
-      if (e.target.readyState === FileReader.DONE) {
-        connRef.current.send({ fileChunk: e.target.result });
-      }
-    };
-
+    // Send initial file metadata
     connRef.current.send({
       fileSize: file.size,
       fileName: file.name,
     });
 
-    readNextChunk();
+    const processNextChunk = () => {
+      while (activeWorkers < CONCURRENT_CHUNKS && pendingChunks.length > 0) {
+        const chunkIndex = pendingChunks.shift();
+        if (chunkIndex === undefined) break;
 
-    connRef.current.on("data", (data) => {
+        const worker = new FileTransferWorker();
+        workers.push(worker);
+        activeWorkers++;
+
+        const start = chunkIndex * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, file.size);
+        
+        worker.postMessage({
+          file: file.slice(start, end),
+          chunkIndex,
+          totalChunks
+        });
+
+        worker.onmessage = (e) => {
+          const { chunkData, chunkIndex } = e.data;
+          
+          // Send the processed chunk
+          connRef.current.send({ 
+            fileChunk: chunkData,
+            chunkIndex,
+            totalChunks
+          });
+        };
+      }
+    };
+
+    connRef.current.on('data', (data) => {
       if (data.ack) {
-        currentChunk++;
-        setProgress(Math.floor((currentChunk / totalChunks) * 100));
-        if (currentChunk < totalChunks) {
-          readNextChunk();
-        } else {
+        completedChunks++;
+        activeWorkers--;
+        setProgress(Math.floor((completedChunks / totalChunks) * 100));
+
+        if (completedChunks === totalChunks) {
+          // Cleanup workers
+          workers.forEach(worker => worker.terminate());
+          
           connRef.current.send({
             fileComplete: true,
             fileName: file.name,
           });
-          toast.success("File sent successfully!");
+          toast.success('File sent successfully!');
+        } else {
+          processNextChunk();
         }
       }
     });
+
+    // Start initial batch of workers
+    processNextChunk();
   };
 
   useEffect(() => {
