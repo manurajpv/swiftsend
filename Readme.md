@@ -35,7 +35,10 @@ Also, `.env` file inside `server/` folder contain the variable`PORT=<Any_port>`.
 
 ## Demo
 
-The App is deployed on [Render](https://render.com/): [Demo Link](https://swiftsend-syrv.onrender.com/)
+The App is deployed on [Render](https://render.com/): [Demo Link](https://swiftsend-syrv.onrender.com/).
+
+You can also install the **PWA** of the APP from the install button on the URL bar of the browser.
+
 ## Authors
 
 - [@manuraj](https://github.com/manurajpv)
