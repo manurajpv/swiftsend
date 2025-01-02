@@ -6,7 +6,6 @@ const urlsToCache = [
   '/src/main.jsx',
   '/src/assets/logo.svg',
   '/src/assets/avatars/*'
-  // Add other static assets, images, and CSS files
 ];
 
 self.addEventListener('install', (event) => {
@@ -23,7 +22,6 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
-        // Cache hit - return response
         if (response) {
           return response;
         }
@@ -32,7 +30,7 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Clean up old caches
+
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
