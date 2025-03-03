@@ -2,8 +2,6 @@ const CACHE_NAME = 'p2p-file-share-v1';
 const urlsToCache = [
   '/',
   '/index.html',
-  '/src/App.jsx',
-  '/src/main.jsx',
   '/src/assets/logo.svg',
   '/src/assets/avatars/*'
 ];
